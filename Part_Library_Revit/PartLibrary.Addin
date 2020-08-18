@@ -1,0 +1,10 @@
+﻿<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<RevitAddIns>
+  <AddIn Type="Application">
+    <Name>Part Library</Name>
+    <Assembly>Part_Library.dll</Assembly>
+    <AddInId>c8144658-4fd8-48b9-afb7-04abb955b156</AddInId>
+    <FullClassName>Part_Library.App</FullClassName>
+    <VendorId>JamesBradleyM</VendorId>
+  </AddIn>
+</RevitAddIns>

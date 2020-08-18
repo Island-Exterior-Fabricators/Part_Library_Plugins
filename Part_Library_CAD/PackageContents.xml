@@ -1,0 +1,21 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ApplicationPackage
+  SchemaVersion="1.0"
+  AutodeskProduct="AutoCAD"
+  ProductType="Application"
+  AppVersion="1.0"
+  Author="James Bradley"
+  Name="Part Library"
+  Description=""
+  Icon="./Contents/Resources/pLibrary.ico"
+  ProductCode="[46b274cb-07e3-40a0-b939-ce1f1b2f6a5e]"
+>
+  <CompanyDetails
+    Name="Island Exterior Fabricators"
+    Url="ief.com"
+  />
+  <RuntimeRequirements OS="Win32|Win64" Platform="AutoCAD*" SeriesMin="R22.0" SeriesMax="R24.0" SupportPath=".\Contents\"/>
+  <Components>
+    <ComponentEntry AppName="Part Library" ModuleName="./Contents/Parts_Library_CAD.dll" LoadOnAutoCADStartup="True"/>
+  </Components>
+</ApplicationPackage>

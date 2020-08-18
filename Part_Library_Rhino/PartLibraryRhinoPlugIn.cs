@@ -16,7 +16,7 @@
             Instance = this;
         }
 
-        ///<summary>Gets the only instance of the PartLibraryRhinoPlugIn plug-in.</summary>
+        ///<summary>Gets the only instance of the PartsLibraryRhinoPlugIn plug-in.</summary>
         public static PartLibraryRhinoPlugIn Instance
         {
             get; private set;
