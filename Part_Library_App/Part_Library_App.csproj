@@ -120,10 +120,14 @@
     </PackageReference>
   </ItemGroup>
   <ItemGroup>
-    <None Include="Autodesk-DWG-icon.png" />
+    <EmbeddedResource Include="Resources\Autodesk-DWG-icon.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
-    <None Include="plus.png" />
+    <EmbeddedResource Include="Resources\plus.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </EmbeddedResource>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

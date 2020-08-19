@@ -6,6 +6,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Windows.Forms;
+using System.Windows.Threading;
 using Newtonsoft.Json;
 using Rhino;
 using Rhino.Commands;
@@ -26,6 +27,8 @@ namespace Part_Library_Rhino
 
         [DllImport("user32.dll")]
         public static extern IntPtr SendMessage(IntPtr hWnd, uint Msg, int wParam, int lParam);
+
+        public static Dispatcher RhinoDispatcher;
 
         public PartLibraryRhinoCommand()
         {
@@ -72,7 +75,7 @@ namespace Part_Library_Rhino
 
                 // execute the library window process
                 Process process = new Process();
-                process.StartInfo.FileName = AssemblyDirectory + "\\Parts_Library_App.exe";
+                process.StartInfo.FileName = AssemblyDirectory + "\\Part_Library_App.exe";
                 process.StartInfo.Arguments = messagehandler.Handle.ToString(); // pass the MessageHandler's window handle the the process as a command line argument
                 process.Start();
 
@@ -81,6 +84,8 @@ namespace Part_Library_Rhino
                 Thread _thread = new Thread(CheckForChanges);
 
                 _thread.Start();
+
+                RhinoDispatcher = Dispatcher.CurrentDispatcher;
             }
             catch (System.Exception ex)
             {
@@ -125,7 +130,10 @@ namespace Part_Library_Rhino
                 {
                     if (MessageHandler.LibraryToAppActions.Count > 0)
                     {
-                        LibraryAction();
+                        RhinoDispatcher.BeginInvoke(new Action(() =>
+                        {
+                            LibraryAction();
+                        }));
                     }
 
                     // Wait a moment and relinquish control before

@@ -123,7 +123,7 @@
             this.Controls.Add(this.usernameTextBox);
             this.Controls.Add(this.pwLabel);
             this.Controls.Add(this.usernameLabel);
-            this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
+            //this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.MaximumSize = new System.Drawing.Size(500, 250);
             this.MinimumSize = new System.Drawing.Size(500, 250);
             this.Name = "LoginForm";
