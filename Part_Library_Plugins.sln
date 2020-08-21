@@ -11,6 +11,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Part_Library_CAD", "Part_Li
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Part_Library_App", "Part_Library_App\Part_Library_App.csproj", "{5318FFAA-5BA3-4B7F-8C75-0222D35D66B7}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Part_Library_Inventor", "Part_Library_Inventor\Part_Library_Inventor.csproj", "{947B19FD-0159-42F5-83BF-CF8A99F2903A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -33,6 +35,10 @@ Global
 		{5318FFAA-5BA3-4B7F-8C75-0222D35D66B7}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5318FFAA-5BA3-4B7F-8C75-0222D35D66B7}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{5318FFAA-5BA3-4B7F-8C75-0222D35D66B7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{947B19FD-0159-42F5-83BF-CF8A99F2903A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{947B19FD-0159-42F5-83BF-CF8A99F2903A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{947B19FD-0159-42F5-83BF-CF8A99F2903A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{947B19FD-0159-42F5-83BF-CF8A99F2903A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

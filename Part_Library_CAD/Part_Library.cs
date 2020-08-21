@@ -100,7 +100,7 @@ namespace Part_Library_CAD
 
                 // execute the library window process
                 Process process = new Process();
-                process.StartInfo.FileName = AssemblyDirectory + "\\Parts_Library_App.exe";
+                process.StartInfo.FileName = AssemblyDirectory + "\\Part_Library_App.exe";
                 process.StartInfo.Arguments = Initialization.messagehandler.Handle.ToString(); // pass the MessageHandler's window handle the the process as a command line argument
                 process.Start();
 
@@ -232,6 +232,7 @@ namespace Part_Library_CAD
                         sourceDb.ReadDwgFile(dwg, FileOpenMode.OpenForReadAndAllShare, true, ""); //Read the DWG into a side database
 
                         cDB.Insert(Path.GetFileNameWithoutExtension(dwg), sourceDb, false);
+                        // Implement Place Method to prompt user/Provide user with Block to place on cursor
                     }
                 }
                 else if (actionD["option"] == "VIEW")

@@ -204,7 +204,7 @@
             this.Controls.Add(this.filterFieldCbo);
             this.Controls.Add(this.addFilterBtn);
             this.Controls.Add(this.filterTextBox);
-            //this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
+            this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.MinimumSize = new System.Drawing.Size(1000, 600);
             this.Name = "LibraryForm";
             this.Text = "Parts Library";

@@ -211,7 +211,7 @@ namespace Part_Library_Rhino
                         if (dwg != "")
                         {
                             RhinoApp.WriteLine("Loading DWG");
-                            string command = "_Import " + '"' + dwg + '"' + " _Enter";
+                            string command = "_Insert " + '"' + dwg + '"' + " _Enter";
                             Rhino.RhinoApp.RunScript(command, false);
                         }
                     }
