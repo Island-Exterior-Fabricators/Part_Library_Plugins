@@ -16,6 +16,6 @@
   />
   <RuntimeRequirements OS="Win32|Win64" Platform="AutoCAD*" SeriesMin="R22.0" SeriesMax="R24.0" SupportPath=".\Contents\"/>
   <Components>
-    <ComponentEntry AppName="Part Library" ModuleName="./Contents/Parts_Library_CAD.dll" LoadOnAutoCADStartup="True"/>
+    <ComponentEntry AppName="Part Library" ModuleName="./Contents/Part_Library_CAD.dll" LoadOnAutoCADStartup="True"/>
   </Components>
 </ApplicationPackage>

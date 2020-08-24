@@ -230,9 +230,44 @@ namespace Part_Library_CAD
                         Document doc = Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument;
                         Database cDB = doc.Database;
                         sourceDb.ReadDwgFile(dwg, FileOpenMode.OpenForReadAndAllShare, true, ""); //Read the DWG into a side database
+                        String fileName = Path.GetFileNameWithoutExtension(dwg);
+                        cDB.Insert(fileName, sourceDb, false);
 
-                        cDB.Insert(Path.GetFileNameWithoutExtension(dwg), sourceDb, false);
-                        // Implement Place Method to prompt user/Provide user with Block to place on cursor
+                        Autodesk.AutoCAD.DatabaseServices.TransactionManager tm = cDB.TransactionManager;
+
+                        try
+                        {
+                            ObjectIdCollection blockIds = new ObjectIdCollection();
+                            using (Transaction myT = tm.StartTransaction())
+                            {
+                                // Open the block table
+                                BlockTable bt =
+                                    (BlockTable)tm.GetObject(cDB.BlockTableId,
+                                                            OpenMode.ForRead,
+                                                            false);
+                                
+                                BlockTableRecord btr = myT.GetObject(bt[fileName], OpenMode.ForRead) as BlockTableRecord;
+
+                                BlockReference br = new BlockReference(Point3d.Origin, btr.ObjectId);
+
+                                if (BlockMovingRotating.Jig(br))
+                                {
+                                    BlockTableRecord modelspace = myT.GetObject(bt[BlockTableRecord.ModelSpace], OpenMode.ForWrite) as BlockTableRecord;
+                                    modelspace.AppendEntity(br);
+                                    myT.AddNewlyCreatedDBObject(br, true);
+                                    myT.Commit();
+                                }
+                                else
+                                {
+                                    myT.Abort();
+                                }
+                                btr.Dispose();
+                            }
+                        }
+                        catch (System.Exception ex)
+                        {
+                            MessageBox.Show(ex.Message);
+                        }
                     }
                 }
                 else if (actionD["option"] == "VIEW")
@@ -247,6 +282,116 @@ namespace Part_Library_CAD
                 //MessageHandler.AppToLibraryActions.Enqueue("A message from the AutoCAD plugin - " + DateTime.Now.ToString());
 
             }
+        }
+
+        public class BlockMovingRotating : EntityJig
+        {
+            #region Fields
+
+            public int mCurJigFactorNumber = 1;
+
+            private Point3d mPosition;    // Factor #1
+            private double mRotation;    // Factor #2
+
+            #endregion
+
+            #region Constructors
+
+            public BlockMovingRotating(Entity ent)
+                : base(ent)
+            {
+            }
+
+            #endregion
+
+            #region Overrides
+
+            protected override bool Update()
+            {
+                switch (mCurJigFactorNumber)
+                {
+                    case 1:
+                        (Entity as BlockReference).Position = mPosition;
+                        break;
+                    case 2:
+                        (Entity as BlockReference).Rotation = mRotation;
+                        break;
+                    default:
+                        return false;
+                }
+
+                return true;
+            }
+
+            protected override SamplerStatus Sampler(JigPrompts prompts)
+            {
+                switch (mCurJigFactorNumber)
+                {
+                    case 1:
+                        JigPromptPointOptions prOptions1 = new JigPromptPointOptions("\nBlock position:");
+                        PromptPointResult prResult1 = prompts.AcquirePoint(prOptions1);
+                        if (prResult1.Status == PromptStatus.Cancel) return SamplerStatus.Cancel;
+
+                        if (prResult1.Value.Equals(mPosition))
+                        {
+                            return SamplerStatus.NoChange;
+                        }
+                        else
+                        {
+                            mPosition = prResult1.Value;
+                            return SamplerStatus.OK;
+                        }
+                    case 2:
+                        JigPromptAngleOptions prOptions2 = new JigPromptAngleOptions("\nBlock rotation angle:");
+                        prOptions2.BasePoint = (Entity as BlockReference).Position;
+                        prOptions2.UseBasePoint = true;
+                        PromptDoubleResult prResult2 = prompts.AcquireAngle(prOptions2);
+                        if (prResult2.Status == PromptStatus.Cancel) return SamplerStatus.Cancel;
+
+                        if (prResult2.Value.Equals(mRotation))
+                        {
+                            return SamplerStatus.NoChange;
+                        }
+                        else
+                        {
+                            mRotation = prResult2.Value;
+                            return SamplerStatus.OK;
+                        }
+                    default:
+                        break;
+                }
+
+                return SamplerStatus.OK;
+            }
+
+            #endregion
+
+            #region Method to Call
+
+            public static bool Jig(BlockReference ent)
+            {
+                try
+                {
+                    Editor ed = MgdAcApplication.DocumentManager.MdiActiveDocument.Editor;
+                    BlockMovingRotating jigger = new BlockMovingRotating(ent);
+                    PromptResult pr;
+                    do
+                    {
+                        pr = ed.Drag(jigger);
+                    } while (pr.Status != PromptStatus.Cancel &&
+                                pr.Status != PromptStatus.Error &&
+                                pr.Status != PromptStatus.Keyword &&
+                                jigger.mCurJigFactorNumber++ <= 2);
+
+                    return pr.Status == PromptStatus.OK;
+                }
+                catch
+                {
+                    return false;
+                }
+            }
+
+            #endregion
         }
     }
 }
