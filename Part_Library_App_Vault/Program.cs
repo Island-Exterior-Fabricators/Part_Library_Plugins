@@ -27,6 +27,7 @@ namespace Part_Library_App_Vault
                 DialogResult result;
                 using (LoginForm lf = new LoginForm())
                     result = lf.ShowDialog();
+
                 if (result == DialogResult.OK)
                 {
                     Application.Run(new LibraryForm());

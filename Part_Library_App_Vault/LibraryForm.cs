@@ -1,4 +1,6 @@
-﻿using Autodesk.DataManagement.Client.Framework.Vault.Currency.Properties;
+﻿using Autodesk.DataManagement.Client.Framework.Vault.Currency.Entities;
+using Autodesk.DataManagement.Client.Framework.Vault.Currency.Properties;
+using Autodesk.DataManagement.Client.Framework.Vault.Forms.Controls;
 using MaterialSkin;
 using MaterialSkin.Controls;
 using Newtonsoft.Json;
@@ -13,6 +15,15 @@ using System.Runtime.InteropServices;
 using System.Security;
 using System.Windows.Forms;
 using Control = System.Windows.Forms.Control;
+
+using Vault = Autodesk.DataManagement.Client.Framework.Vault;
+using Forms = Autodesk.DataManagement.Client.Framework.Vault.Forms;
+using Autodesk.Connectivity.WebServices;
+using Autodesk.Connectivity.WebServicesTools;
+using System.Configuration;
+using System.Reflection;
+using Autodesk.DataManagement.Client.Framework.Vault.Forms.Models;
+
 
 namespace Part_Library_App_Vault
 {
@@ -34,7 +45,6 @@ namespace Part_Library_App_Vault
         Dictionary<string, int> colindex = new Dictionary<string, int>();
         List<Control> filterControls = new List<Control>();
 
-        Dictionary<string, PartTypes.Part> _parts = new Dictionary<string, PartTypes.Part>();
 
         public List<PartTypes.Part> selected = new List<PartTypes.Part>();
         public string option = null;
@@ -57,13 +67,14 @@ namespace Part_Library_App_Vault
 
             listView1.BackColor = materialSkinManager.BackgroundColor;
 
-            Dictionary<string, List<PartTypes.Part>> parts = null;
-            VaultHelper.InitVault(out parts);
+            List < FileIteration > parts = null;
+
+            InitVault(out parts);
 
             //BuildPARTS(parts);
-            //SeedListViewW(parts);
+            SeedListViewW(parts);
 
-            CycleBackground();
+            //CycleBackground();
 
 
             // send this window's hwnd back (finish the handshake)
@@ -348,13 +359,21 @@ namespace Part_Library_App_Vault
             }
         }
 
-        private void SeedListViewW(Dictionary<string, List<PartTypes.Part>> parts)
+        private void SeedListViewW(List<FileIteration> parts)
         {
             listView1.BeginUpdate();
             List<string> headers = new List<string>() { };
-            foreach (PropertyDefinition s in VaultHelper.propDefs.Values)
+            PropertyDefinition pnDef = null;
+            headers.Add("Part Number");
+            foreach (PropertyDefinition s in propDefs.Values)
             {
-                headers.Add(s.DisplayName);
+                if (s.DisplayName == "Part Number")
+                {
+                    pnDef = s;
+                } else
+                {
+                    headers.Add(s.DisplayName);
+                }
             }
 
             string longest = "";
@@ -389,49 +408,80 @@ namespace Part_Library_App_Vault
 
             if (parts != null)
             {
-                //Add
-                foreach (PartTypes.Part p in PARTS)
+                foreach (FileIteration f in parts)
                 {
                     string[] version;
+                    string idval = null;
+                    bool partFound = false;
                     try
                     {
-
-                        version = new[] { p.ID, p.PartDescription, p.ProjectFirstUsedOn, p.Function, p.Type, p.Keymark, p.Sapa, p.InternationalExtrusions,
-                        p.Alloy, p.Temper, p.Finish, p.Hyperlink};
-                        found = false;
+                        version = new String[] { };
                         try
                         {
-                            List<string> files = Directory.GetFiles(@"C:\Documents\ExtrusionLibrary\Thumbnails").ToList();
-                            foreach (string imgfile in files)
+                            idval = GetProperty(v_Conn, f, pnDef.SystemName);
+                            version.Append(idval);
+                            if (idval != "")
                             {
-                                if (imgfile.Contains(".jpg"))
+                                partFound = true;
+                                foreach (PropertyDefinition s in propDefs.Values)
                                 {
-                                    if (Path.GetFileName(imgfile) == (p.ID + ".jpg"))
+                                    if (s.DisplayName != "Part Number")
                                     {
-                                        imageList.Images.Add(p.ID, Image.FromFile(imgfile));
-                                        found = true;
-                                        break;
+                                        string val = GetProperty(v_Conn, f, s.SystemName);
+                                        //MessageBox.Show(val);
+                                        version.Append(val);
                                     }
                                 }
                             }
-                        }
-                        catch
+                            else
+                            {
+                                idval = "default";
+                                version.Append("");
+                            }
+                            //MessageBox.Show(version.Length.ToString());
+
+                        } catch (Exception ex) { MessageBox.Show(ex.Message); }
+
+                        if (partFound)
                         {
+                            found = false;
+                            try
+                            {
+                                List<string> files = Directory.GetFiles(@"C:\Documents\ExtrusionLibrary\Thumbnails").ToList();
+                                foreach (string imgfile in files)
+                                {
+                                    if (imgfile.Contains(".jpg"))
+                                    {
+                                        if (Path.GetFileName(imgfile) == (idval + ".jpg"))
+                                        {
+                                            imageList.Images.Add(idval, Image.FromFile(imgfile));
+                                            found = true;
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                            catch
+                            {
+                            }
                         }
                     }
-                    catch
+                    catch (Exception ex)
                     {
-                        version = new[] { p.ID, "" };
+                        //MessageBox.Show(ex.Message);
+                        version = new[] { idval, "" };
                     }
-                    string key = "default";
-                    if (found) { key = p.ID; }
-                    var item = new ListViewItem(version, key);
-                    item.UseItemStyleForSubItems = true;
-                    item.ImageKey = key;
-                    item.Name = p.ID;
-                    Items.Add(item);
-                    _parts.Add(p.ID.ToString(), p);
-                    index++;
+                    if (partFound)
+                    {
+                        string key = "default";
+                        if (found) { key = idval; }
+                        var item = new ListViewItem(version, key);
+                        item.UseItemStyleForSubItems = true;
+                        item.ImageKey = key;
+                        item.Name = idval;
+                        Items.Add(item);
+                        index++;
+                    }
                 }
             }
             listView1.Items.AddRange(Items.ToArray());
@@ -444,6 +494,7 @@ namespace Part_Library_App_Vault
             }
 
             listView1.EndUpdate();
+            lastHover = listView1.Items[0];
         }
 
         private void listView1_MouseClick(object sender, MouseEventArgs e)
@@ -465,9 +516,8 @@ namespace Part_Library_App_Vault
                 tf.Dispose();
                 tf = null;
             }
-            try { lastHover.BackColor = System.Drawing.Color.White; } catch { }
+            try { lastHover.BackColor = System.Drawing.Color.White; } catch { } finally { lastHover = e.Item as ListViewItem; }
             ListViewItem lvi = e.Item as ListViewItem;
-            PartTypes.Part p = _parts[lvi.Name];
             try
             {
                 String filepath = @"C:\Documents\ExtrusionLibrary\Thumbnails";
@@ -475,26 +525,27 @@ namespace Part_Library_App_Vault
                 {
                     System.IO.Directory.CreateDirectory(filepath);
                 }
+
                 List<string> files = Directory.GetFiles(filepath).ToList();
                 string dwg = "";
                 foreach (string imgfile in files)
                 {
                     // Use local thumb resources
-                    if (Path.GetFileNameWithoutExtension(imgfile) == p.ID)
+                    if (Path.GetFileNameWithoutExtension(imgfile) == lvi.Name)
                     {
-                        p.thumb = (Bitmap)Bitmap.FromFile(imgfile);
+                        Bitmap thumb = (Bitmap)Bitmap.FromFile(imgfile);
 
                         double ratioL = 0;
-                        if (p.thumb.Width > p.thumb.Height)
+                        if (thumb.Width > thumb.Height)
                         {
-                            ratioL = 200.0 / p.thumb.Width;
+                            ratioL = 200.0 / thumb.Width;
                         }
                         else
                         {
-                            ratioL = 200.0 / p.thumb.Height;
+                            ratioL = 200.0 / thumb.Height;
                         }
-                        p.thumbL = new Bitmap(p.thumb, new Size((int)Math.Round(p.thumb.Width * ratioL), (int)Math.Round(p.thumb.Height * ratioL)));
-                        tf = new ThumbForm(p.thumbL);
+                        Bitmap thumbL = new Bitmap(thumb, new Size((int)Math.Round(thumb.Width * ratioL), (int)Math.Round(thumb.Height * ratioL)));
+                        tf = new ThumbForm(thumbL);
 
                         tf.StartPosition = FormStartPosition.Manual;
                         tf.Location = new Point(this.Location.X - (tf.Width + 5), this.Location.Y);
@@ -505,8 +556,6 @@ namespace Part_Library_App_Vault
             }
             catch (Exception ex)
             {
-                p.thumb = null;
-                p.thumbL = null;
                 MessageBox.Show(ex.Message);
             }
         }
@@ -763,17 +812,210 @@ namespace Part_Library_App_Vault
                 }
             }
 
-            foreach (ListViewItem li in listView1.SelectedItems)
-            {
-                selected.Add(_parts[li.SubItems[idindex].Text]);
-            }
             Dictionary<string, string> _dict = new Dictionary<string, string>();
             _dict["option"] = option;
-            _dict["hyperlink"] = _parts[listView1.SelectedItems[0].Name].Hyperlink;
 
             sendMessage(JsonConvert.SerializeObject(_dict));
 
             //this.Close();
+        }
+
+        private Vault.Currency.Connections.Connection m_conn = null;
+        private Vault.Forms.Models.BrowseVaultNavigationModel m_model = null;
+        private WebServiceManager m_svcMgr = null;
+
+        public static Vault.Currency.Connections.Connection v_Conn = null;
+
+        // We will collect Property Definitions here
+        public static Vault.Currency.Properties.PropertyDefinitionDictionary propDefs;
+        public static long[] propDefIDs = new long[] { };
+        public static Dictionary<long, PropertyDefinition> propDict = new Dictionary<long, PropertyDefinition>();
+
+        static bool showMessage = false;
+
+        public static List<FileIteration> collectionLVI = new List<FileIteration>();
+
+        public static bool LoginCheck()
+        {
+            Configuration configuration = ConfigurationManager.OpenExeConfiguration(Assembly.GetExecutingAssembly().Location);
+
+            Vault.Results.LogInResult result = null;
+            result = Vault.Library.ConnectionManager.LogIn(crypt.DecryptString(configuration.AppSettings.Settings["server"].Value),
+                                                            crypt.DecryptString(configuration.AppSettings.Settings["vault"].Value),
+                                                            crypt.DecryptString(configuration.AppSettings.Settings["username"].Value),
+                                                            crypt.DecryptString(configuration.AppSettings.Settings["password"].Value),
+                                                            Vault.Currency.Connections.AuthenticationFlags.ReadOnly, null);
+
+            if (result.Success)
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        public static Vault.Results.LogInResult VaultLogin()
+        {
+            Configuration configuration = ConfigurationManager.OpenExeConfiguration(Assembly.GetExecutingAssembly().Location);
+
+            Vault.Results.LogInResult result = null;
+            result = Vault.Library.ConnectionManager.LogIn(crypt.DecryptString(configuration.AppSettings.Settings["server"].Value),
+                                                            crypt.DecryptString(configuration.AppSettings.Settings["vault"].Value),
+                                                            crypt.DecryptString(configuration.AppSettings.Settings["username"].Value),
+                                                            crypt.DecryptString(configuration.AppSettings.Settings["password"].Value),
+                                                            Vault.Currency.Connections.AuthenticationFlags.ReadOnly, null);
+
+            return result;
+        }
+
+        public static List<FileIteration> InitVault(out List<FileIteration> parts)
+        {
+            parts = new List<FileIteration>();
+            List<Autodesk.Connectivity.WebServices.File> files = null;
+            string bookmark = string.Empty;
+            SrchStatus status = null;
+            List<Autodesk.Connectivity.WebServices.File> totalResults = new List<Autodesk.Connectivity.WebServices.File>();
+
+            Vault.Results.LogInResult result = VaultLogin();
+            v_Conn = result.Connection;
+
+            while (status == null || totalResults.Count < status.TotalHits)
+            {
+                Autodesk.Connectivity.WebServices.File[] results = result.Connection.WebServiceManager.DocumentService.FindFilesBySearchConditions(null, null, null, false, true, ref bookmark, out status);
+
+                if (results != null)
+                {
+                    totalResults.AddRange(results);
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            ReadProperties(result.Connection);
+
+            foreach (Autodesk.Connectivity.WebServices.File f in totalResults)
+            {
+                try
+                {
+                    
+                    FileIteration fi = new Vault.Currency.Entities.FileIteration(result.Connection, f);
+                    PropInst[] props = v_Conn.WebServiceManager.PropertyService.GetPropertiesByEntityIds("FILE", new long[] { fi.EntityIterationId });
+                    //PropInst[] props = v_Conn.WebServiceManager.PropertyService.GetProperties("FILE", new long[] { f.Id }, propDefIDs);
+                    try
+                    {
+                        foreach (PropInst pd in props)
+                        {
+                            MessageBox.Show(pd + " | " + pd.Val.ToString());
+                        }
+                    }
+                    catch { }
+                    //PrintProperties(result.Connection, fi);
+                    parts.Add(fi);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(ex.Message);
+                }
+            }
+
+            return parts;
+        }
+
+        // Output information about each file in a folder along with its properties
+        //===========================================================================
+        static void PrintChildren(Vault.Currency.Connections.Connection connection,
+                Vault.Currency.Entities.Folder parentFolder)
+        {
+            //MessageBox.Show(parentFolder.FullName);
+
+            IEnumerable<Vault.Currency.Entities.IEntity> entities = connection
+                .EntityOperations.GetBrowseChildren(parentFolder);
+            if (entities != null && entities.Count<Vault.Currency.Entities.IEntity>() > 0)
+            {
+                foreach (var ent in entities)
+                {
+                    if (ent is Vault.Currency.Entities.FileIteration)
+                    {
+                        Vault.Currency.Entities.FileIteration fileIteration
+                            = ent as Vault.Currency.Entities.FileIteration;
+
+                        //Now print the properties of the file
+                        //PrintProperties(connection, fileIteration);
+
+                        collectionLVI.Add(fileIteration);
+
+                    }
+                    else if (ent is Vault.Currency.Entities.Folder)
+                    {
+                        // Recursively print info about subfolders and files in them
+                        //-------------------------------------------------------------------------
+
+                        Vault.Currency.Entities.Folder folder
+                            = ent as Vault.Currency.Entities.Folder;
+                        PrintChildren(connection, folder);
+
+                    }
+                }
+            }
+        }
+
+        // Read all the Property Definitions for the "FILE" Entity Class
+        //===============================================================================
+        static void ReadProperties(Vault.Currency.Connections.Connection connection)
+        {
+            propDefs =
+                connection.PropertyManager.GetPropertyDefinitions(
+                Vault.Currency.Entities.EntityClassIds.Files,
+                null,
+                Vault.Currency.Properties.PropertyDefinitionFilter.IncludeUserDefined
+                );
+
+            foreach (PropertyDefinition pd in propDefs.Values)
+            {
+                propDefIDs.Append(pd.Id);
+                propDict[pd.Id] = pd;
+            }
+        }
+
+        static void PrintProperties(Vault.Currency.Connections.Connection connection,
+                        Vault.Currency.Entities.FileIteration fileInteration)
+        {
+            foreach (var key in propDefs.Keys)
+            {
+                // Print the Name from the Definition and the Value from the Property
+                object propValue = connection.PropertyManager.GetPropertyValue(
+                            fileInteration, propDefs[key], null);
+                try
+                {
+                    MessageBox.Show(propDefs[key].DisplayName + ": " + (propValue == null ? "" : propValue.ToString()));
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(ex.Message);
+                }
+            }
+        }
+
+        public static String GetProperty(Vault.Currency.Connections.Connection connection,
+                        Vault.Currency.Entities.FileIteration fileInteration,
+                        string key)
+        {
+            // Print the Name from the Definition and the Value from the Property
+            object propValue = connection.PropertyManager.GetPropertyValue(
+                        fileInteration, propDefs[key], null);
+            try
+            {
+                return (propValue == null ? " " : propValue.ToString());
+            }
+            catch (Exception ex)
+            {
+                //MessageBox.Show(ex.Message);
+                return null;
+            }
         }
     }
 }

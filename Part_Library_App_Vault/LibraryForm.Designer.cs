@@ -1,4 +1,6 @@
-﻿namespace Part_Library_App_Vault
+﻿using Autodesk.DataManagement.Client.Framework.Vault.Forms.Controls;
+
+namespace Part_Library_App_Vault
 {
     partial class LibraryForm
     {
@@ -180,7 +182,7 @@
             this.listView1.ContextMenuStrip = this.materialContextMenuStrip1;
             this.listView1.FullRowSelect = true;
             this.listView1.HideSelection = false;
-            this.listView1.Location = new System.Drawing.Point(13, 166);
+            this.listView1.Location = new System.Drawing.Point(12, 164);
             this.listView1.Name = "listView1";
             this.listView1.Size = new System.Drawing.Size(1175, 497);
             this.listView1.Sorting = System.Windows.Forms.SortOrder.Ascending;

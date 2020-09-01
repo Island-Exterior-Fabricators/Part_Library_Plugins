@@ -76,7 +76,7 @@
             this.serverTextBox.Multiline = false;
             this.serverTextBox.Name = "serverTextBox";
             this.serverTextBox.Size = new System.Drawing.Size(358, 36);
-            this.serverTextBox.TabIndex = 5;
+            this.serverTextBox.TabIndex = 1;
             this.serverTextBox.Text = "";
             this.serverTextBox.UseTallSize = false;
             // 
@@ -92,7 +92,7 @@
             this.vaultTextBox.Multiline = false;
             this.vaultTextBox.Name = "vaultTextBox";
             this.vaultTextBox.Size = new System.Drawing.Size(358, 36);
-            this.vaultTextBox.TabIndex = 6;
+            this.vaultTextBox.TabIndex = 2;
             this.vaultTextBox.Text = "";
             this.vaultTextBox.UseTallSize = false;
             // 
@@ -128,7 +128,7 @@
             this.passwordTextBox.Name = "passwordTextBox";
             this.passwordTextBox.Password = true;
             this.passwordTextBox.Size = new System.Drawing.Size(358, 36);
-            this.passwordTextBox.TabIndex = 11;
+            this.passwordTextBox.TabIndex = 4;
             this.passwordTextBox.Text = "";
             this.passwordTextBox.UseTallSize = false;
             // 
@@ -144,7 +144,7 @@
             this.usernameTextBox.Multiline = false;
             this.usernameTextBox.Name = "usernameTextBox";
             this.usernameTextBox.Size = new System.Drawing.Size(358, 36);
-            this.usernameTextBox.TabIndex = 10;
+            this.usernameTextBox.TabIndex = 3;
             this.usernameTextBox.Text = "";
             this.usernameTextBox.UseTallSize = false;
             // 
