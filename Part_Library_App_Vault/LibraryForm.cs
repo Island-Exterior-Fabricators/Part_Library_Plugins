@@ -67,9 +67,7 @@ namespace Part_Library_App_Vault
 
             listView1.BackColor = materialSkinManager.BackgroundColor;
 
-            List < FileIteration > parts = null;
-
-            InitVault(out parts);
+            List<Autodesk.Connectivity.WebServices.Item> parts = InitVault();
 
             //BuildPARTS(parts);
             SeedListViewW(parts);
@@ -359,7 +357,7 @@ namespace Part_Library_App_Vault
             }
         }
 
-        private void SeedListViewW(List<FileIteration> parts)
+        private void SeedListViewW(List<Autodesk.Connectivity.WebServices.Item> parts)
         {
             listView1.BeginUpdate();
             List<string> headers = new List<string>() { };
@@ -408,81 +406,7 @@ namespace Part_Library_App_Vault
 
             if (parts != null)
             {
-                foreach (FileIteration f in parts)
-                {
-                    string[] version;
-                    string idval = null;
-                    bool partFound = false;
-                    try
-                    {
-                        version = new String[] { };
-                        try
-                        {
-                            idval = GetProperty(v_Conn, f, pnDef.SystemName);
-                            version.Append(idval);
-                            if (idval != "")
-                            {
-                                partFound = true;
-                                foreach (PropertyDefinition s in propDefs.Values)
-                                {
-                                    if (s.DisplayName != "Part Number")
-                                    {
-                                        string val = GetProperty(v_Conn, f, s.SystemName);
-                                        //MessageBox.Show(val);
-                                        version.Append(val);
-                                    }
-                                }
-                            }
-                            else
-                            {
-                                idval = "default";
-                                version.Append("");
-                            }
-                            //MessageBox.Show(version.Length.ToString());
-
-                        } catch (Exception ex) { MessageBox.Show(ex.Message); }
-
-                        if (partFound)
-                        {
-                            found = false;
-                            try
-                            {
-                                List<string> files = Directory.GetFiles(@"C:\Documents\ExtrusionLibrary\Thumbnails").ToList();
-                                foreach (string imgfile in files)
-                                {
-                                    if (imgfile.Contains(".jpg"))
-                                    {
-                                        if (Path.GetFileName(imgfile) == (idval + ".jpg"))
-                                        {
-                                            imageList.Images.Add(idval, Image.FromFile(imgfile));
-                                            found = true;
-                                            break;
-                                        }
-                                    }
-                                }
-                            }
-                            catch
-                            {
-                            }
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        //MessageBox.Show(ex.Message);
-                        version = new[] { idval, "" };
-                    }
-                    if (partFound)
-                    {
-                        string key = "default";
-                        if (found) { key = idval; }
-                        var item = new ListViewItem(version, key);
-                        item.UseItemStyleForSubItems = true;
-                        item.ImageKey = key;
-                        item.Name = idval;
-                        Items.Add(item);
-                        index++;
-                    }
-                }
+                Items = GetVersions(parts);
             }
             listView1.Items.AddRange(Items.ToArray());
             FilteredItems.AddRange(Items);
@@ -870,59 +794,146 @@ namespace Part_Library_App_Vault
             return result;
         }
 
-        public static List<FileIteration> InitVault(out List<FileIteration> parts)
+        public static List<Autodesk.Connectivity.WebServices.Item> InitVault()
         {
-            parts = new List<FileIteration>();
-            List<Autodesk.Connectivity.WebServices.File> files = null;
+            List<Autodesk.Connectivity.WebServices.Item> parts = new List<Autodesk.Connectivity.WebServices.Item>();
             string bookmark = string.Empty;
             SrchStatus status = null;
-            List<Autodesk.Connectivity.WebServices.File> totalResults = new List<Autodesk.Connectivity.WebServices.File>();
 
             Vault.Results.LogInResult result = VaultLogin();
             v_Conn = result.Connection;
 
-            while (status == null || totalResults.Count < status.TotalHits)
+            while (status == null || parts.Count < status.TotalHits)
             {
-                Autodesk.Connectivity.WebServices.File[] results = result.Connection.WebServiceManager.DocumentService.FindFilesBySearchConditions(null, null, null, false, true, ref bookmark, out status);
+                //Autodesk.Connectivity.WebServices.File[] results = result.Connection.WebServiceManager.DocumentService.FindFilesBySearchConditions(null, null, null, false, true, ref bookmark, out status);
+                Autodesk.Connectivity.WebServices.Item[] results = result.Connection.WebServiceManager.ItemService.FindItemRevisionsBySearchConditions(null, null, false, ref bookmark, out status);
 
                 if (results != null)
                 {
-                    totalResults.AddRange(results);
+                    parts.AddRange(results);
                 }
                 else
                 {
                     break;
                 }
+                Console.WriteLine("Total Results: " + parts.Count.ToString() + " TotalHits: " + status.TotalHits.ToString());
             }
 
             ReadProperties(result.Connection);
 
-            foreach (Autodesk.Connectivity.WebServices.File f in totalResults)
+            return parts;
+        }
+
+        public List<ListViewItem> GetVersions(List<Autodesk.Connectivity.WebServices.Item> parts)
+        {
+            List<ListViewItem> Items = new List<ListViewItem>();
+            Dictionary<long, int> versionKey = new Dictionary<long, int>();
+            int index = 1;
+            long partNumberId = -1;
+
+            try
             {
+                foreach (long i in propDefIDs)
+                {
+                    if (propDefs.ContainsKey((int)i))
+                    {
+                        //MessageBox.Show(propDefs[(int)i].DisplayName);
+                        if (propDefs[(int)i].DisplayName == "Name")
+                        {
+                            partNumberId = i;
+                            versionKey.Add(i, 0);
+                            //MessageBox.Show(partNumberId.ToString());
+                        } 
+                        else
+                        {
+                            versionKey.Add(i, index);
+                            index++;
+                        }
+                    }
+                }
+            } catch (Exception ex) { MessageBox.Show("Index Error | " + ex.Message); }
+
+            foreach (Autodesk.Connectivity.WebServices.Item f in parts)
+            {
+                string[] version = new string[propDefs.Count()];
+
+                string idval = "";
                 try
                 {
-                    
-                    FileIteration fi = new Vault.Currency.Entities.FileIteration(result.Connection, f);
-                    PropInst[] props = v_Conn.WebServiceManager.PropertyService.GetPropertiesByEntityIds("FILE", new long[] { fi.EntityIterationId });
-                    //PropInst[] props = v_Conn.WebServiceManager.PropertyService.GetProperties("FILE", new long[] { f.Id }, propDefIDs);
+                    PropInst[] props = v_Conn.WebServiceManager.PropertyService.GetPropertiesByEntityIds("ITEM", new long[] { f.Id });
                     try
                     {
                         foreach (PropInst pd in props)
                         {
-                            MessageBox.Show(pd + " | " + pd.Val.ToString());
+                            try
+                            {
+                                if (propDefs.ContainsKey(pd.PropDefId))
+                                {
+                                    var pdVal = "";
+                                    if (pd.Val != null)
+                                    {
+                                        pdVal = pd.Val.ToString();
+                                    }
+                                    // Insert Property Values into Array for ListView Item
+                                    // Insert Part Number at beginning
+                                    if (pd.PropDefId == partNumberId)
+                                    {
+                                        idval = pdVal;
+                                        //MessageBox.Show(pdVal);
+                                    }
+                                    //MessageBox.Show(propDefs[pd.PropDefId].DisplayName + " | " + pdVal);
+                                    version[versionKey[pd.PropDefId]] = pdVal;
+                                }
+                            }
+                            catch (Exception ex) { MessageBox.Show("Version Error | " + ex.Message); }
                         }
+
+                        bool found = false;
+                        try
+                        {
+                            if (idval != "")
+                            {
+                                List<string> files = Directory.GetFiles(@"C:\Documents\ExtrusionLibrary\Thumbnails").ToList();
+                                foreach (string imgfile in files)
+                                {
+                                    if (imgfile.Contains(".jpg"))
+                                    {
+                                        if (Path.GetFileName(imgfile) == (idval + ".jpg"))
+                                        {
+                                            imageList.Images.Add(idval, Image.FromFile(imgfile));
+                                            found = true;
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            MessageBox.Show("PRESUBEND | " + ex.Message);
+                        }
+
+                        string key = "default";
+                        if (found) { key = idval; }
+                        var item = new ListViewItem(version, key);
+                        item.UseItemStyleForSubItems = true;
+                        item.ImageKey = key;
+                        item.Name = idval;
+                        Items.Add(item);
                     }
-                    catch { }
-                    //PrintProperties(result.Connection, fi);
-                    parts.Add(fi);
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show("END | " + ex.Message);
+                    }
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show(ex.Message);
+                    MessageBox.Show("END | " + ex.Message);
                 }
             }
 
-            return parts;
+            return Items;
+
         }
 
         // Output information about each file in a folder along with its properties
@@ -965,20 +976,28 @@ namespace Part_Library_App_Vault
 
         // Read all the Property Definitions for the "FILE" Entity Class
         //===============================================================================
-        static void ReadProperties(Vault.Currency.Connections.Connection connection)
+        public static void ReadProperties(Vault.Currency.Connections.Connection connection)
         {
             propDefs =
                 connection.PropertyManager.GetPropertyDefinitions(
                 Vault.Currency.Entities.EntityClassIds.Files,
                 null,
-                Vault.Currency.Properties.PropertyDefinitionFilter.IncludeUserDefined
+                PropertyDefinitionFilter.IncludeAll
                 );
 
+            List<long> tempIDs = new List<long>();
             foreach (PropertyDefinition pd in propDefs.Values)
             {
-                propDefIDs.Append(pd.Id);
-                propDict[pd.Id] = pd;
+                try
+                {
+                    tempIDs.Add(pd.Id);
+                    propDict.Add(pd.Id, pd);
+                } catch (Exception ex) 
+                { 
+                    //MessageBox.Show("Property Build: " + pd.DisplayName + " | " + ex.Message);
+                }
             }
+            propDefIDs = tempIDs.ToArray();
         }
 
         static void PrintProperties(Vault.Currency.Connections.Connection connection,
