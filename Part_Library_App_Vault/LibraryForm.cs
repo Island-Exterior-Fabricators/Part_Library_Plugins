@@ -418,6 +418,21 @@ namespace Part_Library_App_Vault
             }
 
             listView1.EndUpdate();
+
+            listView1.SuspendLayout();
+
+
+            // hide/delete unused columns
+            for (int col = versionCull.Length-1; col > 0; col--)
+            {
+                if (versionCull[col] != 1)
+                {
+                    //MessageBox.Show(listView1.Columns[col].Text);
+                    listView1.Columns.RemoveAt(col);
+                }
+            }
+
+            listView1.ResumeLayout();
             lastHover = listView1.Items[0];
         }
 
@@ -744,16 +759,14 @@ namespace Part_Library_App_Vault
             //this.Close();
         }
 
-        private Vault.Currency.Connections.Connection m_conn = null;
-        private Vault.Forms.Models.BrowseVaultNavigationModel m_model = null;
-        private WebServiceManager m_svcMgr = null;
-
         public static Vault.Currency.Connections.Connection v_Conn = null;
 
         // We will collect Property Definitions here
         public static Vault.Currency.Properties.PropertyDefinitionDictionary propDefs;
         public static long[] propDefIDs = new long[] { };
         public static Dictionary<long, PropertyDefinition> propDict = new Dictionary<long, PropertyDefinition>();
+
+        int[] versionCull;
 
         static bool showMessage = false;
 
@@ -794,7 +807,7 @@ namespace Part_Library_App_Vault
             return result;
         }
 
-        public static List<Autodesk.Connectivity.WebServices.Item> InitVault()
+        public List<Autodesk.Connectivity.WebServices.Item> InitVault()
         {
             List<Autodesk.Connectivity.WebServices.Item> parts = new List<Autodesk.Connectivity.WebServices.Item>();
             string bookmark = string.Empty;
@@ -853,6 +866,12 @@ namespace Part_Library_App_Vault
                 }
             } catch (Exception ex) { MessageBox.Show("Index Error | " + ex.Message); }
 
+            versionCull = new int[propDefs.Count()];
+            for (int vci = 0; vci < versionCull.Length; vci++)
+            {
+                versionCull[vci] = 0;
+            }
+
             foreach (Autodesk.Connectivity.WebServices.Item f in parts)
             {
                 string[] version = new string[propDefs.Count()];
@@ -882,7 +901,9 @@ namespace Part_Library_App_Vault
                                         //MessageBox.Show(pdVal);
                                     }
                                     //MessageBox.Show(propDefs[pd.PropDefId].DisplayName + " | " + pdVal);
-                                    version[versionKey[pd.PropDefId]] = pdVal;
+                                    long _key = versionKey[pd.PropDefId];
+                                    version[_key] = pdVal;
+                                    versionCull[_key] = 1;
                                 }
                             }
                             catch (Exception ex) { MessageBox.Show("Version Error | " + ex.Message); }
@@ -931,7 +952,7 @@ namespace Part_Library_App_Vault
                     MessageBox.Show("END | " + ex.Message);
                 }
             }
-
+            
             return Items;
 
         }
@@ -976,7 +997,7 @@ namespace Part_Library_App_Vault
 
         // Read all the Property Definitions for the "FILE" Entity Class
         //===============================================================================
-        public static void ReadProperties(Vault.Currency.Connections.Connection connection)
+        public void ReadProperties(Vault.Currency.Connections.Connection connection)
         {
             propDefs =
                 connection.PropertyManager.GetPropertyDefinitions(
