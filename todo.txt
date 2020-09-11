@@ -1,0 +1,7 @@
+100 item test
+Property test for part library inclusion
+
+Get all files/parts associated with Item
+Assume every object has pdf file
+
+Grab all associated PDF files and combine to single file for release, download option

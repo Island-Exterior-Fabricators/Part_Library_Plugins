@@ -23,7 +23,8 @@ using Autodesk.Connectivity.WebServicesTools;
 using System.Configuration;
 using System.Reflection;
 using Autodesk.DataManagement.Client.Framework.Vault.Forms.Models;
-
+using System.Diagnostics;
+using System.Drawing.Imaging;
 
 namespace Part_Library_App_Vault
 {
@@ -34,11 +35,12 @@ namespace Part_Library_App_Vault
 
         System.Windows.Forms.Timer action_timer = new System.Windows.Forms.Timer() { Interval = 300 };
 
-        List<PartTypes.Part> PARTS = new List<PartTypes.Part>();
+        List<Autodesk.Connectivity.WebServices.Item> PARTS = new List<Autodesk.Connectivity.WebServices.Item>();
         Bitmap defaultDWG = Resource.Autodesk_DWG_icon;
         ImageList imageList = new ImageList();
 
         List<ListViewItem> Items = new List<ListViewItem>();
+        List<ListViewItem> _Items = new List<ListViewItem>();
         List<ListViewItem> ItemsIMG = new List<ListViewItem>();
         List<ListViewItem> FilteredItems = new List<ListViewItem>();
         List<Filter> filterSet = new List<Filter>();
@@ -69,10 +71,10 @@ namespace Part_Library_App_Vault
 
             List<Autodesk.Connectivity.WebServices.Item> parts = InitVault();
 
-            //BuildPARTS(parts);
+            BuildPARTS(parts);
             SeedListViewW(parts);
 
-            //CycleBackground();
+            CycleBackground();
 
 
             // send this window's hwnd back (finish the handshake)
@@ -253,68 +255,63 @@ namespace Part_Library_App_Vault
             public bool last { get; set; }
         }
 
-        private void BuildPARTS(Dictionary<string, List<PartTypes.Part>> parts)
+        private void BuildPARTS(List<Autodesk.Connectivity.WebServices.Item> parts)
         {
-            foreach (List<PartTypes.Part> pa in parts.Values)
-            {
-                PARTS.AddRange(pa.ToArray());
-            }
+            PARTS = parts;
         }
 
         private void backgroundWorker1_DoWork(object sender, DoWorkEventArgs e)
         {
             BackgroundWorker worker = sender as BackgroundWorker;
-
-            foreach (PartTypes.Part p in PARTS)
+            foreach (Autodesk.Connectivity.WebServices.Item f in PARTS)
             {
                 try
                 {
-                    List<string> files = Directory.GetFiles(p.Hyperlink).ToList();
-                    foreach (string imgfile in files)
+                    ThumbSet ts = new ThumbSet();
+                    Byte[] imgbyte = v_Conn.WebServiceManager.PropertyService.GetProperties("ITEM", new long[] { f.Id }, new long[] { thumbID }).FirstOrDefault().Val as Byte[];
+                    if (imgbyte == null)
                     {
-                        String extension = "";
-                        if (imgfile.Contains(".jpg"))
-                        {
-                            extension = ".jpg";
-                        }
-                        else if (imgfile.Contains(".png"))
-                        {
-                            extension = ".png";
-                        }
-                        if (extension != "")
-                        {
-                            //p.thumb = (Bitmap)Bitmap.FromFile(imgfile);
-                            ThumbSet ts = new ThumbSet();
-                            string newPathAndName = @"C:\Documents\ExtrusionLibrary\Thumbnails\" + p.ID + extension;
 
-                            if (!System.IO.Directory.Exists(newPathAndName))
+                    }
+                    else
+                    {
+                        using (var ms = new MemoryStream(imgbyte))
+                        {
+                            using (System.IO.BinaryReader br = new System.IO.BinaryReader(ms))
                             {
-                                System.IO.File.Copy(imgfile, newPathAndName);
+                                // Vault saves thumbnails as jpeg per developer comments for 2013, assume same
+                                // https://justonesandzeros.typepad.com/blog/2012/05/thumbnail-optimization.html#:~:text=One%20of%20the%20optimizations%20in,JPEG%20when%20at%20thumbnail%20size.
+
+                                // the bytes do not represent a metafile, try to convert to an Image
+                                ms.Seek(0, System.IO.SeekOrigin.Begin);
+                                ts.IMG = Image.FromStream(ms, true, false);
+                            }
+                        }
+                        ts.ID = v_Conn.WebServiceManager.PropertyService.GetProperties("ITEM", new long[] { f.Id }, new long[] { nameID }).FirstOrDefault().Val.ToString();
+                        string newPathAndName = @"C:\Documents\ExtrusionLibrary\Thumbnails\" + ts.ID + ".jpeg";
+
+                        if (System.IO.File.Exists(newPathAndName))
+                        {
+
+                        }
+                        else
+                        {
+                            if (ts.IMG != null)
+                            {
+                                System.IO.File.WriteAllBytes(newPathAndName, imgbyte);
                                 ts.IMG = Image.FromFile(newPathAndName);
-                                ts.ID = p.ID;
                                 worker.ReportProgress(100, ts);
                             }
-                            else
-                            {
-                                if (System.IO.File.GetLastWriteTime(imgfile) != System.IO.File.GetLastWriteTime(newPathAndName))
-                                {
-                                    System.IO.File.Copy(imgfile, newPathAndName);
-                                    ts.IMG = Image.FromFile(newPathAndName);
-                                    ts.ID = p.ID;
-                                    worker.ReportProgress(100, ts);
-                                }
-                            }
-                            break;
                         }
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
-                }
-                finally
-                {
+
+                    MessageBox.Show("END | " + ex.Message);
                 }
             }
+
             ThumbSet tsLast = new ThumbSet();
             tsLast.last = true;
             worker.ReportProgress(100, tsLast);
@@ -406,7 +403,8 @@ namespace Part_Library_App_Vault
 
             if (parts != null)
             {
-                Items = GetVersions(parts);
+                //Items = GetVersions(parts);
+                Items = GetAllVersions(parts);
             }
             listView1.Items.AddRange(Items.ToArray());
             FilteredItems.AddRange(Items);
@@ -420,7 +418,6 @@ namespace Part_Library_App_Vault
             listView1.EndUpdate();
 
             listView1.SuspendLayout();
-
 
             // hide/delete unused columns
             for (int col = versionCull.Length-1; col > 0; col--)
@@ -764,6 +761,8 @@ namespace Part_Library_App_Vault
         // We will collect Property Definitions here
         public static Vault.Currency.Properties.PropertyDefinitionDictionary propDefs;
         public static long[] propDefIDs = new long[] { };
+        public long thumbID;
+        public long nameID;
         public static Dictionary<long, PropertyDefinition> propDict = new Dictionary<long, PropertyDefinition>();
 
         int[] versionCull;
@@ -810,6 +809,7 @@ namespace Part_Library_App_Vault
         public List<Autodesk.Connectivity.WebServices.Item> InitVault()
         {
             List<Autodesk.Connectivity.WebServices.Item> parts = new List<Autodesk.Connectivity.WebServices.Item>();
+            List<long> partIds = new List<long>();
             string bookmark = string.Empty;
             SrchStatus status = null;
 
@@ -837,8 +837,10 @@ namespace Part_Library_App_Vault
             return parts;
         }
 
-        public List<ListViewItem> GetVersions(List<Autodesk.Connectivity.WebServices.Item> parts)
+        public List<ListViewItem> GetAllVersions(List<Item> parts)
         {
+            Stopwatch stopwatch = new Stopwatch();
+            stopwatch.Start();
             List<ListViewItem> Items = new List<ListViewItem>();
             Dictionary<long, int> versionKey = new Dictionary<long, int>();
             int index = 1;
@@ -856,7 +858,7 @@ namespace Part_Library_App_Vault
                             partNumberId = i;
                             versionKey.Add(i, 0);
                             //MessageBox.Show(partNumberId.ToString());
-                        } 
+                        }
                         else
                         {
                             versionKey.Add(i, index);
@@ -864,7 +866,140 @@ namespace Part_Library_App_Vault
                         }
                     }
                 }
-            } catch (Exception ex) { MessageBox.Show("Index Error | " + ex.Message); }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Index Error | " + ex.Message);
+            }
+
+            versionCull = new int[propDefs.Count()];
+            for (int vci = 0; vci < versionCull.Length; vci++)
+            {
+                versionCull[vci] = 0;
+            }
+
+            Dictionary<long, string[]> versions = new Dictionary<long, string[]>();
+
+            try
+            {
+                IEnumerable<long> partIds = parts.Select(x => x.Id).Distinct();
+                PropInst[] props = v_Conn.WebServiceManager.PropertyService.GetPropertiesByEntityIds("ITEM", partIds.ToArray());
+                try
+                {
+                    foreach (PropInst pd in props)
+                    {
+                        try
+                        {
+                            if (!versions.ContainsKey(pd.EntityId))
+                            {
+                                versions.Add(pd.EntityId, new string[propDefs.Count()]);
+                            }
+
+                            var pdVal = "";
+                            if (pd.Val != null)
+                            {
+                                pdVal = pd.Val.ToString();
+                            }
+
+                            if (versionKey.ContainsKey(pd.PropDefId) && versions.ContainsKey(pd.EntityId))
+                            {
+                                long _key = versionKey[pd.PropDefId];
+                                versions[pd.EntityId][_key] = pdVal;
+                                versionCull[_key] = 1;
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            MessageBox.Show("Version Error | " + ex.Message); 
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("END | " + ex.Message);
+                }
+
+                foreach (string[] version in versions.Values)
+                {
+
+                    bool found = false;
+                    try
+                    {
+                        if (version[0] != "")
+                        {
+                            List<string> files = Directory.GetFiles(@"C:\Documents\ExtrusionLibrary\Thumbnails").ToList();
+                            foreach (string imgfile in files)
+                            {
+                                if (imgfile.Contains(".jpeg"))
+                                {
+                                    if (Path.GetFileName(imgfile) == (version[0] + ".jpeg"))
+                                    {
+                                        imageList.Images.Add(version[0], Image.FromFile(imgfile));
+                                        found = true;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show("PRESUBEND | " + ex.Message);
+                    }
+
+                    string key = "default";
+                    if (found) { key = version[0]; }
+                    var item = new ListViewItem(version, key);
+                    item.UseItemStyleForSubItems = true;
+                    item.ImageKey = key;
+                    item.Name = version[0];
+                    Items.Add(item);
+                }
+            }
+            catch (Exception ex)
+            {
+                //MessageBox.Show("END | " + ex.Message);
+            }
+            stopwatch.Stop();
+            Console.WriteLine("GetAllVersion Time: " + stopwatch.Elapsed);
+            Console.WriteLine("Items: " + Items.Count.ToString());
+            return Items;
+        }
+
+        public List<ListViewItem> GetVersions(List<Autodesk.Connectivity.WebServices.Item> parts)
+        {
+            Stopwatch stopwatch = new Stopwatch();
+            stopwatch.Start();
+            List<ListViewItem> Items = new List<ListViewItem>();
+            Dictionary<long, int> versionKey = new Dictionary<long, int>();
+            int index = 1;
+            long partNumberId = -1;
+
+            try
+            {
+                foreach (long i in propDefIDs)
+                {
+                    if (propDefs.ContainsKey((int)i))
+                    {
+                        //MessageBox.Show(propDefs[(int)i].DisplayName);
+                        if (propDefs[(int)i].DisplayName == "Name")
+                        {
+                            partNumberId = i;
+                            versionKey.Add(i, 0);
+                            //MessageBox.Show(partNumberId.ToString());
+                        }
+                        else
+                        {
+                            versionKey.Add(i, index);
+                            index++;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex) 
+            {
+                MessageBox.Show("Index Error | " + ex.Message);
+            }
 
             versionCull = new int[propDefs.Count()];
             for (int vci = 0; vci < versionCull.Length; vci++)
@@ -917,9 +1052,9 @@ namespace Part_Library_App_Vault
                                 List<string> files = Directory.GetFiles(@"C:\Documents\ExtrusionLibrary\Thumbnails").ToList();
                                 foreach (string imgfile in files)
                                 {
-                                    if (imgfile.Contains(".jpg"))
+                                    if (imgfile.Contains(".jpeg"))
                                     {
-                                        if (Path.GetFileName(imgfile) == (idval + ".jpg"))
+                                        if (Path.GetFileName(imgfile) == (idval + ".jpeg"))
                                         {
                                             imageList.Images.Add(idval, Image.FromFile(imgfile));
                                             found = true;
@@ -952,7 +1087,8 @@ namespace Part_Library_App_Vault
                     MessageBox.Show("END | " + ex.Message);
                 }
             }
-            
+            stopwatch.Stop();
+            Console.WriteLine("GetVersion Time: " + stopwatch.Elapsed);
             return Items;
 
         }
@@ -1009,6 +1145,14 @@ namespace Part_Library_App_Vault
             List<long> tempIDs = new List<long>();
             foreach (PropertyDefinition pd in propDefs.Values)
             {
+                if (pd.DisplayName == "Thumbnail")
+                {
+                    thumbID = pd.Id;
+                }
+                else if (pd.DisplayName == "Name")
+                {
+                    nameID = pd.Id;
+                }
                 try
                 {
                     tempIDs.Add(pd.Id);
